@@ -1,5 +1,7 @@
-import { availableChatModels, availableCompletionModels, availableReasoningModels } from "./models";
+import { availableChatModels, availableCompletionModels } from "./models";
 import { OpenAI } from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { Stream } from '@anthropic-ai/sdk/streaming';
 import { Readable } from "stream";
 
 
@@ -59,23 +61,17 @@ Please follow this format when generating other cards. Again, it is extremely im
 
 export async function* generateFlashcards(
 	text: string,
+	provider: 'openai' | 'claude',
 	apiKey: string,
 	model: string = "gpt-4o",
 	sep: string = "::",
 	flashcardsCount: number = 3,
 	additionalInfo: string = "",
 	maxTokens: number = 300,
-
-	reasoningEffort: string,
 	stream: boolean = true
 ) {
 
-	const openai = new OpenAI({
-		apiKey: apiKey,
-		dangerouslyAllowBrowser: true
-	});
-
-	const cleanedText = text.replace(/<!--.*-->[\n]?/g, "");
+	const cleanedText = text.replace(/<!--.*-->[\\n]?/g, "");
 	const flashcardText = cleanedText
 
 	let basePrompt = multilineCardsPrompt(sep, flashcardsCount)
@@ -86,51 +82,89 @@ export async function* generateFlashcards(
 the original task): ${additionalInfo}`
 	}
 
-	const chatModels = availableChatModels()
-	const completionModels = availableCompletionModels()
-	const reasoningModels = availableReasoningModels()
-	const isReasoning = reasoningModels.includes(model)
-	let response = null;
+	if (provider === 'openai') {
+		// OpenAI implementation
+		const openai = new OpenAI({
+			apiKey: apiKey,
+			dangerouslyAllowBrowser: true
+		});
 
-	// TODO: use newer client.responses.create endpoint.
-	// TODO: use structured (json) output to enforce flashcards formatting
-	if (chatModels.includes(model) || reasoningModels.includes(model)) {
-		response = await openai.chat.completions.create({
-			model: model,
-			...(!isReasoning && { temperature: 0.7 }),
-			...(isReasoning && { reasoning_effort: "low" }),
-			max_completion_tokens: maxTokens,
-			frequency_penalty: 0,
-			presence_penalty: 0,
-			top_p: 1.0,
-			messages: [
-				{ role: "system", content: basePrompt },
-				{ role: "user", content: flashcardText },
-			],
-			response_format: {
-				type: "text",
-			},
-			stream: stream,
-		}, { timeout: 60000 });
-		if (!stream) {
-			response = response as OpenAI.ChatCompletion
-			response = response?.choices[0]?.message?.content?.trim() ?? null;
-			yield response || '';
-		}
-		else {
-			response = response as AsyncIterable<OpenAI.ChatCompletionChunk>
-			for await (const chunk of response) {
-				yield chunk.choices[0]?.delta?.content || '';
+		const chatModels = availableChatModels()
+		const completionModels = availableCompletionModels()
+		let response = null;
+
+		if (chatModels.includes(model)) {
+			response = await openai.chat.completions.create({
+				model: model,
+				temperature: 0.7,
+				max_completion_tokens: maxTokens,
+				frequency_penalty: 0,
+				presence_penalty: 0,
+				top_p: 1.0,
+				messages: [
+					{ role: "system", content: basePrompt },
+					{ role: "user", content: flashcardText },
+				],
+				response_format: {
+					type: "text",
+				},
+				stream: stream,
+			}, { timeout: 60000 });
+
+			if (!stream) {
+				response = response as OpenAI.ChatCompletion
+				response = response?.choices[0]?.message?.content?.trim() ?? null;
+				yield response || '';
+			}
+			else {
+				response = response as AsyncIterable<OpenAI.ChatCompletionChunk>
+				for await (const chunk of response) {
+					yield chunk.choices[0]?.delta?.content || '';
+				}
 			}
 		}
-	}
-	else {
-		throw new Error(`Invalid model name ${model}`)
-	}
+		else {
+			throw new Error(`Invalid model name ${model}`)
+		}
 
-	if (!response) {
-		console.log(response)
-		throw new OpenAIError("No response received from OpenAI API");
+		if (!response) {
+			console.log(response)
+			throw new OpenAIError("No response received from OpenAI API");
+		}
+	} else if (provider === 'claude') {
+		// Claude implementation
+		const anthropic = new Anthropic({
+			apiKey: apiKey,
+			dangerouslyAllowBrowser: true
+		});
+
+		const response = await anthropic.messages.create({
+			model: model,
+			max_tokens: maxTokens,
+			temperature: 0.7,
+			system: basePrompt,
+			messages: [
+				{ role: "user", content: flashcardText }
+			],
+			stream: stream
+		});
+
+		if (!stream) {
+			// Non-streaming response
+			const messageResponse = response as Anthropic.Message;
+			const content = messageResponse.content[0];
+			if (content.type === 'text') {
+				yield content.text;
+			}
+		} else {
+			// Streaming response
+			const streamResponse = response as Stream<Anthropic.RawMessageStreamEvent>;
+			for await (const event of streamResponse) {
+				if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+					yield event.delta.text;
+				}
+			}
+		}
 	}
 
 	return

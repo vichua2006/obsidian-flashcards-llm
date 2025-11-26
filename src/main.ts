@@ -10,14 +10,16 @@ import { FlashcardsSettings, FlashcardsSettingsTab } from "./settings"
 // - Insert an optional header before flashcards
 
 const DEFAULT_SETTINGS: FlashcardsSettings = {
-  apiKey: "",
-  model: "gpt-4o",
+  provider: 'claude',
+  openaiApiKey: "",
+  openaiModel: "gpt-4o",
+  claudeApiKey: "",
+  claudeModel: "claude-sonnet-4-5-20250929",
 
   multilineSeparator: "?",
   flashcardsCount: 3,
   additionalPrompt: "",
   maxTokens: 300,
-  reasoningEffort: "low",
   streaming: true,
   hideInPreview: true,
   tag: "#flashcards"
@@ -28,9 +30,6 @@ export default class FlashcardsLLMPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
-
-
-
     this.addCommand({
       id: "generate-flashcards",
       name: "Generate Flashcards",
@@ -74,12 +73,14 @@ export default class FlashcardsLLMPlugin extends Plugin {
   }
 
   async onGenerateFlashcards(editor: Editor, view: MarkdownView, configuration: FlashcardsSettings) {
-    const apiKey = configuration.apiKey;
+    const provider = configuration.provider;
+    const apiKey = provider === 'openai' ? configuration.openaiApiKey : configuration.claudeApiKey;
+    const model = provider === 'openai' ? configuration.openaiModel : configuration.claudeModel;
+
     if (!apiKey) {
-      new Notice("API key is not set in plugin settings");
+      new Notice(`${provider} API key is not set in plugin settings`);
       return;
     }
-    const model = configuration.model;
     if (!model) {
       new Notice("Please select a model to use in the plugin settings");
       return;
@@ -122,14 +123,13 @@ export default class FlashcardsLLMPlugin extends Plugin {
     try {
       const generatedFlashcards = await generateFlashcards(
         currentText,
+        provider,
         apiKey,
         model,
         sep,
         flashcardsCount,
         additionalPrompt,
         maxTokens,
-
-        configuration.reasoningEffort,
         streaming
       )
 

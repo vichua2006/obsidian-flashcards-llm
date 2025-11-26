@@ -1,7 +1,7 @@
 import { App, Modal, Setting } from "obsidian"
 import { FlashcardsSettings } from "./settings"
 import FlashcardsLLMPlugin from "./main"
-import { availableCompletionModels, availableChatModels, availableReasoningModels, allAvailableModels } from "./models"
+import { availableClaudeModels, allAvailableModels } from "./models"
 
 
 // TODO:
@@ -26,29 +26,37 @@ export class InputModal extends Modal {
     let { contentEl, containerEl, modalEl } = this;
     contentEl.createEl("h1", { text: "Prompt configuration" });
 
+    const getAvailableModels = () => {
+      if (this.configuration.provider === 'openai') {
+        return allAvailableModels();
+      } else {
+        return availableClaudeModels();
+      }
+    };
+
+    const getCurrentModel = () => {
+      if (this.configuration.provider === 'openai') {
+        return this.configuration.openaiModel;
+      } else {
+        return this.configuration.claudeModel;
+      }
+    };
+
     new Setting(contentEl)
       .setName("Model")
       .addDropdown((dropdown) =>
         dropdown
-          .addOptions(Object.fromEntries(allAvailableModels().map(k => [k, k])))
-          .setValue(this.configuration.model)
+          .addOptions(Object.fromEntries(getAvailableModels().map(k => [k, k])))
+          .setValue(getCurrentModel())
           .onChange(async (value) => {
-            reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(value));
-            this.configuration.model = value
+            if (this.configuration.provider === 'openai') {
+              this.configuration.openaiModel = value;
+            } else {
+              this.configuration.claudeModel = value;
+            }
           })
       );
 
-    const reasoningEffortSetting = new Setting(contentEl)
-      .setName("Reasoning Effort")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOptions(Object.fromEntries(["low", "medium", "high"].map(k => [k, k]))) // TODO: refactor reasoning entries
-          .setValue(this.configuration.reasoningEffort)
-          .onChange(async (value) => {
-            this.configuration.reasoningEffort = value;
-          })
-      );
-    reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(this.configuration.model));
 
     new Setting(contentEl)
       .setName("Number of flashcards to generate")
