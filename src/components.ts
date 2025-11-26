@@ -10,11 +10,11 @@ import { availableCompletionModels, availableChatModels, availableReasoningModel
 export class InputModal extends Modal {
   plugin: FlashcardsLLMPlugin
   configuration: FlashcardsSettings;
-  multiline: boolean;
-  keypressed: boolean;
-  onSubmit: (configuration: FlashcardsSettings, multiline: boolean) => void;
 
-  constructor(app: App, plugin: FlashcardsLLMPlugin, onSubmit: (configuration: FlashcardsSettings, multiline: boolean) => void) {
+  keypressed: boolean;
+  onSubmit: (configuration: FlashcardsSettings) => void;
+
+  constructor(app: App, plugin: FlashcardsLLMPlugin, onSubmit: (configuration: FlashcardsSettings) => void) {
     super(app);
     this.plugin = plugin;
     this.onSubmit = onSubmit;
@@ -23,86 +23,78 @@ export class InputModal extends Modal {
   }
 
   onOpen() {
-    let {  contentEl, containerEl, modalEl } = this;
+    let { contentEl, containerEl, modalEl } = this;
     contentEl.createEl("h1", { text: "Prompt configuration" });
 
     new Setting(contentEl)
-    .setName("Model")
-    .addDropdown((dropdown) =>
-      dropdown
-	  .addOptions(Object.fromEntries(allAvailableModels().map(k => [k, k])))
-      .setValue(this.configuration.model)
-      .onChange(async (value) => {
-		reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(value));
-        this.configuration.model = value
-      })
-    );
+      .setName("Model")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions(Object.fromEntries(allAvailableModels().map(k => [k, k])))
+          .setValue(this.configuration.model)
+          .onChange(async (value) => {
+            reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(value));
+            this.configuration.model = value
+          })
+      );
 
     const reasoningEffortSetting = new Setting(contentEl)
-    .setName("Reasoning Effort")
-    .addDropdown((dropdown) =>
-      dropdown
-	  .addOptions(Object.fromEntries(["low", "medium", "high"].map(k => [k, k]))) // TODO: refactor reasoning entries
-      .setValue(this.configuration.reasoningEffort)
-      .onChange(async (value) => {
-        this.configuration.reasoningEffort = value;
-      })
-    );
-	reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(this.configuration.model));
+      .setName("Reasoning Effort")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions(Object.fromEntries(["low", "medium", "high"].map(k => [k, k]))) // TODO: refactor reasoning entries
+          .setValue(this.configuration.reasoningEffort)
+          .onChange(async (value) => {
+            this.configuration.reasoningEffort = value;
+          })
+      );
+    reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(this.configuration.model));
 
     new Setting(contentEl)
-    .setName("Number of flashcards to generate")
-    .addText((text) =>
-      text
-      .setValue(this.configuration.flashcardsCount.toString())
-      .onChange((value) => {
-        this.configuration.flashcardsCount = Number(value)
-        // TODO: check input
-      })
-    );
-
-    new Setting(contentEl)
-    .setName("Flashcards tag")
-    .addText((text) =>
-      text
-      .setPlaceholder("#flashcards")
-      .setValue(this.plugin.settings.tag)
-      .onChange(async (value) => {
-        this.configuration.tag = value
-      })
-    );
-
-    new Setting(contentEl)
-    .setName("Additional prompt")
-    .addText((text) =>
-      text
-      .setValue(this.configuration.additionalPrompt)
-      .onChange((value) => {
-        this.configuration.additionalPrompt = value
-      })
-    );
-
-    new Setting(contentEl)
-      .setName("Multiline")
-      .addToggle((on) => 
-        on
-        .setValue(false)
-        .onChange(async (on) => {
-          this.multiline = on
-        })
+      .setName("Number of flashcards to generate")
+      .addText((text) =>
+        text
+          .setValue(this.configuration.flashcardsCount.toString())
+          .onChange((value) => {
+            this.configuration.flashcardsCount = Number(value)
+            // TODO: check input
+          })
       );
 
     new Setting(contentEl)
-      .addButton((btn) => 
+      .setName("Flashcards tag")
+      .addText((text) =>
+        text
+          .setPlaceholder("#flashcards")
+          .setValue(this.plugin.settings.tag)
+          .onChange(async (value) => {
+            this.configuration.tag = value
+          })
+      );
+
+    new Setting(contentEl)
+      .setName("Additional prompt")
+      .addText((text) =>
+        text
+          .setValue(this.configuration.additionalPrompt)
+          .onChange((value) => {
+            this.configuration.additionalPrompt = value
+          })
+      );
+
+
+
+    new Setting(contentEl)
+      .addButton((btn) =>
         btn
-        .setButtonText("Submit")
-        .setCta()
-        .onClick(() => {
-          this.submit();
-        })
+          .setButtonText("Submit")
+          .setCta()
+          .onClick(() => {
+            this.submit();
+          })
       );
 
-    contentEl.addEventListener("keyup", ({key}) => {
+    contentEl.addEventListener("keyup", ({ key }) => {
       if (key === "Enter") {
         // Hack to make the keypress work reliably:
         // without this (for example) it registers the KEYUP event from
@@ -117,10 +109,10 @@ export class InputModal extends Modal {
     });
 
   }
-  
+
   submit() {
     this.close();
-    this.onSubmit(this.configuration, this.multiline);
+    this.onSubmit(this.configuration);
   }
 
   onClose() {

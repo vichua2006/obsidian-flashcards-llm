@@ -12,7 +12,7 @@ import { FlashcardsSettings, FlashcardsSettingsTab } from "./settings"
 const DEFAULT_SETTINGS: FlashcardsSettings = {
   apiKey: "",
   model: "gpt-4o",
-  inlineSeparator: "::",
+
   multilineSeparator: "?",
   flashcardsCount: 3,
   additionalPrompt: "",
@@ -29,19 +29,13 @@ export default class FlashcardsLLMPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
 
-    this.addCommand({
-      id: "generate-inline-flashcards",
-      name: "Generate Inline Flashcards",
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.onGenerateFlashcards(editor, view, this.settings, false);
-      },
-    });
+
 
     this.addCommand({
-      id: "generate-long-flashcards",
-      name: "Generate Multiline Flashcards",
+      id: "generate-flashcards",
+      name: "Generate Flashcards",
       editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.onGenerateFlashcards(editor, view, this.settings, true);
+        this.onGenerateFlashcards(editor, view, this.settings);
       },
     });
 
@@ -50,8 +44,8 @@ export default class FlashcardsLLMPlugin extends Plugin {
       name: "Generate flashcards with new settings",
       editorCallback: (editor: Editor, view: MarkdownView) => {
 
-        new InputModal(this.app, this, (configuration: FlashcardsSettings, multiline: boolean) => {
-          this.onGenerateFlashcards(editor, view, configuration, multiline);
+        new InputModal(this.app, this, (configuration: FlashcardsSettings) => {
+          this.onGenerateFlashcards(editor, view, configuration);
         }).open();
 
       },
@@ -59,14 +53,14 @@ export default class FlashcardsLLMPlugin extends Plugin {
 
     this.registerMarkdownPostProcessor((element, context) => {
 
-      if(!this.settings.hideInPreview) {
+      if (!this.settings.hideInPreview) {
         return;
       }
 
       const blocks = element.findAll("blockquote");
       const tag = this.settings.tag;
 
-      for(let block of blocks) {
+      for (let block of blocks) {
         const anchors = Array.from(block.querySelectorAll("a"));
         if (anchors.some((a) => a.getAttribute("href")?.startsWith(`${tag}`))) {
           block.style.display = 'none'
@@ -79,7 +73,7 @@ export default class FlashcardsLLMPlugin extends Plugin {
     this.addSettingTab(new FlashcardsSettingsTab(this.app, this));
   }
 
-  async onGenerateFlashcards(editor: Editor, view: MarkdownView, configuration: FlashcardsSettings, multiline: boolean = false) {
+  async onGenerateFlashcards(editor: Editor, view: MarkdownView, configuration: FlashcardsSettings) {
     const apiKey = configuration.apiKey;
     if (!apiKey) {
       new Notice("API key is not set in plugin settings");
@@ -91,7 +85,7 @@ export default class FlashcardsLLMPlugin extends Plugin {
       return;
     }
 
-    const sep = multiline ? configuration.multilineSeparator : configuration.inlineSeparator
+    const sep = configuration.multilineSeparator
 
     let flashcardsCount = Math.trunc(configuration.flashcardsCount)
     if (!Number.isFinite(flashcardsCount) || flashcardsCount <= 0) {
@@ -134,8 +128,8 @@ export default class FlashcardsLLMPlugin extends Plugin {
         flashcardsCount,
         additionalPrompt,
         maxTokens,
-        multiline,
-		configuration.reasoningEffort,
+
+        configuration.reasoningEffort,
         streaming
       )
 
@@ -151,7 +145,7 @@ export default class FlashcardsLLMPlugin extends Plugin {
       //   updatedText += "> #flashcards\n> \n> ";
       // }
       updatedText += `\n\n> ${tag}\n> \n> `;
-      
+
       editor.setCursor(editor.lastLine())
       editor.replaceRange(updatedText, editor.getCursor())
 
