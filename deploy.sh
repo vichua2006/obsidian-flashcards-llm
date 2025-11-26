@@ -7,19 +7,20 @@
 set -e
 
 # Load environment variables from .env file if it exists
+# Strip carriage returns to handle Windows line endings
 if [ -f .env ]; then
-    export $(cat .env | xargs)
+    export $(cat .env | tr -d '\r' | xargs)
 fi
 
-# Check if OBSIDIAN_VAULT_PATH is set
-if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
-    echo "Error: OBSIDIAN_VAULT_PATH is not set."
-    echo "Please create a .env file with OBSIDIAN_VAULT_PATH=/path/to/your/vault"
+# Check if OBSIDIAN_PLUGIN_PATH is set
+if [ -z "$OBSIDIAN_PLUGIN_PATH" ]; then
+    echo "Error: OBSIDIAN_PLUGIN_PATH is not set."
+    echo "Please create a .env file with OBSIDIAN_PLUGIN_PATH=/path/to/your/plugin"
     exit 1
 fi
 
-# Construct plugin directory path
-PLUGIN_DIR="${OBSIDIAN_VAULT_PATH}/.obsidian/plugins/flashcards-llm"
+# Use the path directly as the plugin directory
+PLUGIN_DIR="${OBSIDIAN_PLUGIN_PATH}"
 
 echo "Building plugin..."
 npm run build

@@ -34,19 +34,25 @@ function extractTextAfterFlashcards(text: string): string | null {
 function multilineCardsPrompt(sep: string, flashcardsCount: number): string {
 	return `
 You are an expert educator. You will receive a markdown note with existing flashcards at the end—ignore those.  
-Generate exactly ${flashcardsCount} *new* flashcards in this block structure:
+Identify which are the most important concepts within the note and generate exactly ${flashcardsCount} new original flashcards.
 
-Question
-${sep}
-Answer
+Use the exact words "START" and "END" to signify the beginning and end of a flashcard.
 
-Rules:
-1. Use *only* the separator ${sep} between question and answer blocks. Always use it.
-2. Use exactly one blank line between blocks; no trailing spaces.  
-3. In‑line math must use \`$…$\` correctly (no extra spaces) and \\\\ for sub‑line breaks.  
-4. Questions should be atomic, challenging, and information‑rich; no repetition or paraphrase.  
-5. Do not add prefixes, suffixes, or trailing spaces.  
-6. Start output immediately with the first card—no headings or commentary.  
+Here are the steps to create each question-answer pair:
+1. In a new line, produce the exact word "START" with NO TRAILING WHITE SPACES.
+2. Go to the next line and produce the word "Basic".
+3. Go to the next line and put the question text all on this line.
+4. Go to the next line and put "Back:" at the beginning, followed by the answer text, all in one line.
+5. This is the final step: go to the next line, and produce the exact word "END" with NO TRAILING WHITE SPACES.
+
+Here is an example of a flashcard generated this way:
+START
+Basic
+This is a question.
+Back: This is the answer!
+END
+
+Please follow this format when generating other cards. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line. The flashcards can be as complex as needed, but have to be rich of information and challenging. Do not repeat or rephrase flashcards. Typeset equations and math formulas correctly (that is using the $ symbol without trailing spaces).
 `.trim();
 }
 
