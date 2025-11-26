@@ -6,9 +6,20 @@
 # Exit on error
 set -e
 
-# Convert Windows path to WSL path
-VAULT_PATH="/mnt/d/User/vichu/Desktop/Personal/test-vault"
-PLUGIN_DIR="${VAULT_PATH}/.obsidian/plugins/flashcards-llm"
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+    export $(cat .env | xargs)
+fi
+
+# Check if OBSIDIAN_VAULT_PATH is set
+if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
+    echo "Error: OBSIDIAN_VAULT_PATH is not set."
+    echo "Please create a .env file with OBSIDIAN_VAULT_PATH=/path/to/your/vault"
+    exit 1
+fi
+
+# Construct plugin directory path
+PLUGIN_DIR="${OBSIDIAN_VAULT_PATH}/.obsidian/plugins/flashcards-llm"
 
 echo "Building plugin..."
 npm run build
