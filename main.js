@@ -6454,22 +6454,6 @@ var OpenAIError2 = class extends Error {
     this.name = "OpenAIError";
   }
 };
-function inlineCardsPrompt(sep, flashcardsCount) {
-  return `
-You are an expert educator. You will receive a markdown note with existing flashcards at the end\u2014ignore those.  
-Generate exactly ${flashcardsCount} *new* flashcards, strictly following this one\u2011line format:
-
-  Question ${sep} Answer
-
-Rules:
-1. Use *only* ${sep} to split Q&A; separate cards with one blank line.  
-2. Keep each card on a single text line: do **not** insert actual newline characters inside.  
-3. In\u2011line math must use \`$\u2026$\` correctly (no extra spaces) and \\\\ for sub\u2011line breaks.  
-4. Questions should be atomic, challenging, and information\u2011rich; do not repeat or paraphrase.  
-5. Do not add prefixes, suffixes, or trailing spaces.  
-6. Start output immediately with the first card\u2014no headings or commentary.  
-`.trim();
-}
 function multilineCardsPrompt(sep, flashcardsCount) {
   return `
 You are an expert educator. You will receive a markdown note with existing flashcards at the end\u2014ignore those.  
@@ -6488,7 +6472,7 @@ Rules:
 6. Start output immediately with the first card\u2014no headings or commentary.  
 `.trim();
 }
-async function* generateFlashcards(text, apiKey, model = "gpt-4o", sep = "::", flashcardsCount = 3, additionalInfo = "", maxTokens = 300, multiline = false, reasoningEffort, stream = true) {
+async function* generateFlashcards(text, apiKey, model = "gpt-4o", sep = "::", flashcardsCount = 3, additionalInfo = "", maxTokens = 300, reasoningEffort, stream = true) {
   var _a3, _b, _c, _d, _e, _f;
   const openai = new OpenAI({
     apiKey,
@@ -6496,7 +6480,7 @@ async function* generateFlashcards(text, apiKey, model = "gpt-4o", sep = "::", f
   });
   const cleanedText = text.replace(/<!--.*-->[\n]?/g, "");
   const flashcardText = cleanedText;
-  let basePrompt = multiline ? multilineCardsPrompt(sep, flashcardsCount) : inlineCardsPrompt(sep, flashcardsCount);
+  let basePrompt = multilineCardsPrompt(sep, flashcardsCount);
   if (additionalInfo) {
     basePrompt = basePrompt + `
 Additional instructions for the task (ignore anything unrelated to the original task): ${additionalInfo}`;
@@ -6584,11 +6568,6 @@ var InputModal = class extends import_obsidian.Modal {
         this.configuration.additionalPrompt = value;
       })
     );
-    new import_obsidian.Setting(contentEl).setName("Multiline").addToggle(
-      (on) => on.setValue(false).onChange(async (on2) => {
-        this.multiline = on2;
-      })
-    );
     new import_obsidian.Setting(contentEl).addButton(
       (btn) => btn.setButtonText("Submit").setCta().onClick(() => {
         this.submit();
@@ -6606,7 +6585,7 @@ var InputModal = class extends import_obsidian.Modal {
   }
   submit() {
     this.close();
-    this.onSubmit(this.configuration, this.multiline);
+    this.onSubmit(this.configuration);
   }
   onClose() {
     let { contentEl } = this;
@@ -6646,12 +6625,6 @@ var FlashcardsSettingsTab = class extends import_obsidian2.PluginSettingTab {
     );
     reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(this.plugin.settings.model));
     containerEl.createEl("h3", { text: "Preferences" });
-    new import_obsidian2.Setting(containerEl).setName("Separator for inline flashcards").setDesc("Note that after changing this you have to manually edit any flashcards you already have").addText(
-      (text) => text.setPlaceholder("::").setValue(this.plugin.settings.inlineSeparator).onChange(async (value) => {
-        this.plugin.settings.inlineSeparator = value;
-        await this.plugin.saveSettings();
-      })
-    );
     new import_obsidian2.Setting(containerEl).setName("Separator for multi-line flashcards").setDesc("Note that after changing this you have to manually edit any flashcards you already have").addText(
       (text) => text.setPlaceholder("?").setValue(this.plugin.settings.multilineSeparator).onChange(async (value) => {
         this.plugin.settings.multilineSeparator = value;
@@ -6705,7 +6678,6 @@ var FlashcardsSettingsTab = class extends import_obsidian2.PluginSettingTab {
 var DEFAULT_SETTINGS = {
   apiKey: "",
   model: "gpt-4o",
-  inlineSeparator: "::",
   multilineSeparator: "?",
   flashcardsCount: 3,
   additionalPrompt: "",
@@ -6719,25 +6691,18 @@ var FlashcardsLLMPlugin = class extends import_obsidian3.Plugin {
   async onload() {
     await this.loadSettings();
     this.addCommand({
-      id: "generate-inline-flashcards",
-      name: "Generate Inline Flashcards",
+      id: "generate-flashcards",
+      name: "Generate Flashcards",
       editorCallback: (editor, view) => {
-        this.onGenerateFlashcards(editor, view, this.settings, false);
-      }
-    });
-    this.addCommand({
-      id: "generate-long-flashcards",
-      name: "Generate Multiline Flashcards",
-      editorCallback: (editor, view) => {
-        this.onGenerateFlashcards(editor, view, this.settings, true);
+        this.onGenerateFlashcards(editor, view, this.settings);
       }
     });
     this.addCommand({
       id: "generate-flashcards-interactive",
       name: "Generate flashcards with new settings",
       editorCallback: (editor, view) => {
-        new InputModal(this.app, this, (configuration, multiline) => {
-          this.onGenerateFlashcards(editor, view, configuration, multiline);
+        new InputModal(this.app, this, (configuration) => {
+          this.onGenerateFlashcards(editor, view, configuration);
         }).open();
       }
     });
@@ -6759,7 +6724,7 @@ var FlashcardsLLMPlugin = class extends import_obsidian3.Plugin {
     });
     this.addSettingTab(new FlashcardsSettingsTab(this.app, this));
   }
-  async onGenerateFlashcards(editor, view, configuration, multiline = false) {
+  async onGenerateFlashcards(editor, view, configuration) {
     const apiKey = configuration.apiKey;
     if (!apiKey) {
       new import_obsidian3.Notice("API key is not set in plugin settings");
@@ -6770,7 +6735,7 @@ var FlashcardsLLMPlugin = class extends import_obsidian3.Plugin {
       new import_obsidian3.Notice("Please select a model to use in the plugin settings");
       return;
     }
-    const sep = multiline ? configuration.multilineSeparator : configuration.inlineSeparator;
+    const sep = configuration.multilineSeparator;
     let flashcardsCount = Math.trunc(configuration.flashcardsCount);
     if (!Number.isFinite(flashcardsCount) || flashcardsCount <= 0) {
       new import_obsidian3.Notice("Please provide a correct number of flashcards to generate. Defaulting to 3");
@@ -6799,7 +6764,6 @@ var FlashcardsLLMPlugin = class extends import_obsidian3.Plugin {
         flashcardsCount,
         additionalPrompt,
         maxTokens,
-        multiline,
         configuration.reasoningEffort,
         streaming
       );
