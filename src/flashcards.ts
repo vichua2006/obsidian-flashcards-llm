@@ -2,7 +2,6 @@ import { availableChatModels, availableCompletionModels } from "./models";
 import { OpenAI } from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { Stream } from '@anthropic-ai/sdk/streaming';
-import { Readable } from "stream";
 
 
 
@@ -19,21 +18,15 @@ class OpenAIError extends Error {
 	}
 }
 
-function extractTextAfterFlashcards(text: string): string | null {
-	const pattern = /#flashcards.*\n/;
-	const match = text.match(pattern);
-
-	if (match) {
-		const startIdx = match.index! + match[0].length;
-		return text.substring(startIdx);
-	}
-
-	return null;
+export enum FlashcardType {
+	Basic = "Basic",
+	BasicReversed = "Basic (and reversed card)",
+	Cloze = "Cloze",
+	BasicCantonese = "Basic (Cantonese)"
 }
 
 
-
-function multilineCardsPrompt(sep: string, flashcardsCount: number): string {
+function basicPrompt(flashcardsCount: number): string {
 	return `
 You are an expert educator. You will receive a markdown note with existing flashcards at the end—ignore those.  
 Identify which are the most important concepts within the note and generate exactly ${flashcardsCount} new original flashcards.
@@ -58,13 +51,102 @@ Please follow this format when generating other cards. Again, it is extremely im
 `.trim();
 }
 
+function basicReversedPrompt(flashcardsCount: number): string {
+	return `
+You are an expert educator. You will receive a markdown note with existing flashcards at the end—ignore those.  
+Identify which are the most important concepts within the note and generate exactly ${flashcardsCount} new original flashcards.
+
+Use the exact words "START" and "END" to signify the beginning and end of a flashcard.
+
+Here are the steps to create each question-answer pair:
+1. In a new line, produce the exact word "START" with NO TRAILING WHITE SPACES.
+2. Go to the next line and produce the text "Basic (and reversed card)".
+3. Go to the next line and put the question text all on this line.
+4. Go to the next line and put "Back:" at the beginning, followed by the answer text, all in one line.
+5. This is the final step: go to the next line, and produce the exact word "END" with NO TRAILING WHITE SPACES.
+
+Here is an example of a flashcard generated this way:
+START
+Basic (and reversed card)
+你好
+Back: Hello
+END
+
+This will create TWO cards: one showing 你好 asking for Hello, and another showing Hello asking for 你好.
+
+Please follow this format when generating other cards. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line. The flashcards can be as complex as needed, but have to be rich of information and challenging. Do not repeat or rephrase flashcards. Typeset equations and math formulas correctly (that is using the $ symbol without trailing spaces).
+`.trim();
+}
+
+function clozePrompt(flashcardsCount: number): string {
+	return `
+You are an expert educator. You will receive a markdown note with existing flashcards at the end—ignore those.  
+Identify which are the most important concepts within the note and generate exactly ${flashcardsCount} new original Cloze flashcards.
+
+Use the exact words "START" and "END" to signify the beginning and end of a flashcard.
+
+Here are the steps to create each Cloze flashcard:
+1. In a new line, produce the exact word "START" with NO TRAILING WHITE SPACES.
+2. Go to the next line and produce the word "Cloze".
+3. Go to the next line and put "Text:" at the beginning, followed by a sentence with one or more cloze deletions in the format {{c1::hidden text}}.
+4. This is the final step: go to the next line, and produce the exact word "END" with NO TRAILING WHITE SPACES.
+
+Here is an example of a Cloze flashcard:
+START
+Cloze
+Text: The capital of France is {{c1::Paris}}.
+END
+
+For language learning, you can include translations in parentheses:
+START
+Cloze
+Text: 我{{c1::好}}鐘意粵語。(我 {{c1::很}} 喜欢粵語。)
+END
+
+You can use multiple cloze deletions in one card: {{c1::first}}, {{c2::second}}, {{c3::third}}.
+
+Please follow this format when generating other cards. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line. The flashcards should test understanding of key concepts in context. Do not repeat or rephrase flashcards. Typeset equations and math formulas correctly (that is using the $ symbol without trailing spaces).
+`.trim();
+}
+
+function basicCantonesePrompt(flashcardsCount: number): string {
+	return `
+You are an expert Cantonese language educator. You will receive a markdown note with existing flashcards at the end—ignore those.  
+Identify which are the most important Cantonese vocabulary or phrases and generate exactly ${flashcardsCount} new flashcards.
+
+Use the exact words "START" and "END" to signify the beginning and end of a flashcard.
+
+Here are the steps to create each Cantonese flashcard:
+1. In a new line, produce the exact word "START" with NO TRAILING WHITE SPACES.
+2. Go to the next line and produce the word "Basic".
+3. Go to the next line and put the Cantonese character(s) all on this line.
+4. Go to the next line and put "Back:" at the beginning, followed by THREE lines of information:
+   - First line: "Jyutping: [romanization with tone numbers 1-6]"
+   - Second line: "Meaning: [Simplified Chinese meaning]"
+   - Third line: "Example: [Example sentence in Cantonese characters]"
+5. This is the final step: go to the next line, and produce the exact word "END" with NO TRAILING WHITE SPACES.
+
+Here is an example of a Cantonese flashcard:
+START
+Basic
+你好
+Back: Jyutping: nei5 hou2
+Meaning: 你好
+Example: 你好嗎？
+END
+
+Please follow this format when generating other cards. Use proper Cantonese characters (traditional Chinese), accurate Jyutping romanization with correct tone numbers (1-6), natural example sentences, and common vocabulary. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line.
+`.trim();
+}
+
+
 
 export async function* generateFlashcards(
 	text: string,
 	provider: 'openai' | 'claude',
 	apiKey: string,
 	model: string = "gpt-4o",
-	sep: string = "::",
+	flashcardType: FlashcardType = FlashcardType.Basic,
 	flashcardsCount: number = 3,
 	additionalInfo: string = "",
 	maxTokens: number = 300,
@@ -74,7 +156,23 @@ export async function* generateFlashcards(
 	const cleanedText = text.replace(/<!--.*-->[\\n]?/g, "");
 	const flashcardText = cleanedText
 
-	let basePrompt = multilineCardsPrompt(sep, flashcardsCount)
+	// Select prompt based on flashcard type
+	let basePrompt: string;
+	switch (flashcardType) {
+		case FlashcardType.BasicReversed:
+			basePrompt = basicReversedPrompt(flashcardsCount);
+			break;
+		case FlashcardType.Cloze:
+			basePrompt = clozePrompt(flashcardsCount);
+			break;
+		case FlashcardType.BasicCantonese:
+			basePrompt = basicCantonesePrompt(flashcardsCount);
+			break;
+		case FlashcardType.Basic:
+		default:
+			basePrompt = basicPrompt(flashcardsCount);
+			break;
+	}
 
 	if (additionalInfo) {
 		basePrompt = basePrompt +
