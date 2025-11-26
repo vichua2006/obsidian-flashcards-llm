@@ -145,14 +145,13 @@ export default class FlashcardsLLMPlugin extends Plugin {
       // if (!hasTag) {
       //   updatedText += "> #flashcards\n> \n> ";
       // }
-      updatedText += `\n\n> ${tag}\n> \n> `;
+      updatedText += `\n\n${tag}\n\n`;
 
       editor.setCursor(editor.lastLine())
       editor.replaceRange(updatedText, editor.getCursor())
 
       editor.setCursor(editor.lastLine())
       for await (let text of generatedFlashcards) {
-        text = text.replace(/\n/g, "\n> ")
         editor.replaceRange(text, editor.getCursor())
         const offset: number = editor.posToOffset(editor.getCursor())
         const newPosition: EditorPosition = editor.offsetToPos(offset + text.length)
