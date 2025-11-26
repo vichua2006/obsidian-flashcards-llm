@@ -1,19 +1,21 @@
 import { App, MarkdownView, PluginSettingTab, Setting } from 'obsidian';
-import { availableChatModels, availableCompletionModels, availableReasoningModels, allAvailableModels } from "./models";
+import { availableClaudeModels, allAvailableModels } from "./models";
 import FlashcardsLLMPlugin from "./main"
 
 // TODO:
 // - make additional prompt a resizable textarea
 
 export interface FlashcardsSettings {
-  apiKey: string;
-  model: string;
+  provider: 'openai' | 'claude';
+  openaiApiKey: string;
+  openaiModel: string;
+  claudeApiKey: string;
+  claudeModel: string;
 
   multilineSeparator: string;
   flashcardsCount: number;
   additionalPrompt: string;
   maxTokens: number;
-  reasoningEffort: string;
   streaming: boolean;
   hideInPreview: boolean;
   tag: string;
@@ -35,46 +37,78 @@ export class FlashcardsSettingsTab extends PluginSettingTab {
 
     containerEl.createEl("h3", { text: "Model settings" })
 
+    // Provider Selection
     new Setting(containerEl)
-      .setName("OpenAI API key")
-      .setDesc("Enter your OpenAI API key")
-      .addText((text) =>
-        text
-          .setPlaceholder("API key")
-          .setValue(this.plugin.settings.apiKey)
-          .onChange(async (value) => {
-            this.plugin.settings.apiKey = value;
+      .setName("Provider")
+      .setDesc("Select which LLM provider to use")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions({ 'openai': 'OpenAI', 'claude': 'Claude' })
+          .setValue(this.plugin.settings.provider)
+          .onChange(async (value: 'openai' | 'claude') => {
+            this.plugin.settings.provider = value;
             await this.plugin.saveSettings();
+            this.display(); // Refresh the display to show/hide provider-specific settings
           })
       );
 
-    new Setting(containerEl)
-      .setName("Model")
-      .setDesc("Which language model to use")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOptions(Object.fromEntries(allAvailableModels().map(k => [k, k])))
-          .setValue(this.plugin.settings.model)
-          .onChange(async (value) => {
-            this.plugin.settings.model = value;
-            reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(value));
-            await this.plugin.saveSettings();
-          })
-      );
+    // OpenAI API Key (only visible when OpenAI is selected)
+    if (this.plugin.settings.provider === 'openai') {
+      new Setting(containerEl)
+        .setName("OpenAI API key")
+        .setDesc("Enter your OpenAI API key")
+        .addText((text) =>
+          text
+            .setPlaceholder("sk-...")
+            .setValue(this.plugin.settings.openaiApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiApiKey = value;
+              await this.plugin.saveSettings();
+            })
+        );
 
-    const reasoningEffortSetting = new Setting(containerEl)
-      .setName("Reasoning Effort")
-      .setDesc("Constrains effort on reasoning for reasoning models.")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOptions(Object.fromEntries(["low", "medium", "high"].map(k => [k, k])))
-          .setValue(this.plugin.settings.reasoningEffort)
-          .onChange(async (value) => {
-            this.plugin.settings.reasoningEffort = value;
-            await this.plugin.saveSettings();
-          })
-      );
-    reasoningEffortSetting.setDisabled(!availableReasoningModels().includes(this.plugin.settings.model));
+      new Setting(containerEl)
+        .setName("OpenAI Model")
+        .setDesc("Which OpenAI language model to use")
+        .addDropdown((dropdown) =>
+          dropdown
+            .addOptions(Object.fromEntries(allAvailableModels().map(k => [k, k])))
+            .setValue(this.plugin.settings.openaiModel)
+            .onChange(async (value) => {
+              this.plugin.settings.openaiModel = value;
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+
+    // Claude API Key (only visible when Claude is selected)
+    if (this.plugin.settings.provider === 'claude') {
+      new Setting(containerEl)
+        .setName("Claude API key")
+        .setDesc("Enter your Claude API key (from console.anthropic.com)")
+        .addText((text) =>
+          text
+            .setPlaceholder("sk-ant-...")
+            .setValue(this.plugin.settings.claudeApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.claudeApiKey = value;
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName("Claude Model")
+        .setDesc("Which Claude model to use")
+        .addDropdown((dropdown) =>
+          dropdown
+            .addOptions(Object.fromEntries(availableClaudeModels().map(k => [k, k])))
+            .setValue(this.plugin.settings.claudeModel)
+            .onChange(async (value) => {
+              this.plugin.settings.claudeModel = value;
+              await this.plugin.saveSettings();
+            })
+        );
+    }
 
     containerEl.createEl("h3", { text: "Preferences" })
 
