@@ -192,7 +192,7 @@ Use the exact words "START" and "END" to signify each flashcard.
 Here is the required format for every sentence card:
 
 1. In a new line, write "START" with NO trailing spaces.
-2. On the next line, write "Sentence".
+2. On the next line, write "Basic".
 3. On the next line, write a **full Cantonese sentence** (traditional Chinese characters).
 4. On the next line, write "Back:" followed by THREE lines:
    - First line: "Jyutping: [full sentence in correct Jyutping with tone numbers]"
@@ -204,7 +204,7 @@ Separate each flashcard with a single empty line.
 
 Here is an example of a flashcard generated this way:
 START
-Sentence
+Basic
 佢今日返工好早。
 Back: Jyutping: keoi5 gam1 jat6 faan1 gung1 hou2 zou2
 Meaning: 他今天上班很早。
