@@ -1,6 +1,7 @@
 import { App, MarkdownView, PluginSettingTab, Setting } from 'obsidian';
 import { availableClaudeModels, allAvailableModels } from "./models";
 import FlashcardsLLMPlugin from "./main"
+import { FlashcardType } from "./flashcards";
 
 // TODO:
 // - make additional prompt a resizable textarea
@@ -12,6 +13,7 @@ export interface FlashcardsSettings {
   claudeApiKey: string;
   claudeModel: string;
 
+  flashcardType: FlashcardType;
   multilineSeparator: string;
   flashcardsCount: number;
   additionalPrompt: string;
@@ -112,6 +114,25 @@ export class FlashcardsSettingsTab extends PluginSettingTab {
 
     containerEl.createEl("h3", { text: "Preferences" })
 
+    new Setting(containerEl)
+      .setName("Flashcard Type")
+      .setDesc("Select the type of flashcards to generate")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions({
+            [FlashcardType.Basic]: "Basic",
+            [FlashcardType.BasicReversed]: "Basic (and reversed card)",
+            [FlashcardType.Cloze]: "Cloze",
+            [FlashcardType.BasicCantonese]: "Basic (Cantonese)",
+            [FlashcardType.ClozeCantonese]: "Cloze (Cantonese)",
+            [FlashcardType.SentenceCantonese]: "Sentence (Cantonese)"
+          })
+          .setValue(this.plugin.settings.flashcardType)
+          .onChange(async (value) => {
+            this.plugin.settings.flashcardType = value as FlashcardType;
+            await this.plugin.saveSettings();
+          })
+      );
 
     new Setting(containerEl)
       .setName("Separator for multi-line flashcards")

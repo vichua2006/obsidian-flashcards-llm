@@ -2,6 +2,7 @@ import { App, Modal, Setting } from "obsidian"
 import { FlashcardsSettings } from "./settings"
 import FlashcardsLLMPlugin from "./main"
 import { availableClaudeModels, allAvailableModels } from "./models"
+import { FlashcardType } from "./flashcards"
 
 
 // TODO:
@@ -57,6 +58,24 @@ export class InputModal extends Modal {
           })
       );
 
+
+    new Setting(contentEl)
+      .setName("Flashcard Type")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOptions({
+            [FlashcardType.Basic]: "Basic",
+            [FlashcardType.BasicReversed]: "Basic (and reversed card)",
+            [FlashcardType.Cloze]: "Cloze",
+            [FlashcardType.BasicCantonese]: "Basic (Cantonese)",
+            [FlashcardType.ClozeCantonese]: "Cloze (Cantonese)",
+            [FlashcardType.SentenceCantonese]: "Sentence (Cantonese)"
+          })
+          .setValue(this.configuration.flashcardType)
+          .onChange(async (value) => {
+            this.configuration.flashcardType = value as FlashcardType;
+          })
+      );
 
     new Setting(contentEl)
       .setName("Number of flashcards to generate")

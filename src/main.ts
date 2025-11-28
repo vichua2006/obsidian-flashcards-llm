@@ -1,5 +1,5 @@
 import { App, Editor, EditorPosition, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { generateFlashcards } from "./flashcards";
+import { generateFlashcards, FlashcardType } from "./flashcards";
 import { InputModal } from "./components"
 import { FlashcardsSettings, FlashcardsSettingsTab } from "./settings"
 
@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: FlashcardsSettings = {
   openaiModel: "gpt-4o",
   claudeApiKey: "",
   claudeModel: "claude-sonnet-4-5-20250929",
+  flashcardType: FlashcardType.Basic,
 
   multilineSeparator: "?",
   flashcardsCount: 3,
@@ -126,7 +127,7 @@ export default class FlashcardsLLMPlugin extends Plugin {
         provider,
         apiKey,
         model,
-        sep,
+        configuration.flashcardType,
         flashcardsCount,
         additionalPrompt,
         maxTokens,
@@ -144,14 +145,13 @@ export default class FlashcardsLLMPlugin extends Plugin {
       // if (!hasTag) {
       //   updatedText += "> #flashcards\n> \n> ";
       // }
-      updatedText += `\n\n> ${tag}\n> \n> `;
+      updatedText += `\n\n${tag}\n\n`;
 
       editor.setCursor(editor.lastLine())
       editor.replaceRange(updatedText, editor.getCursor())
 
       editor.setCursor(editor.lastLine())
       for await (let text of generatedFlashcards) {
-        text = text.replace(/\n/g, "\n> ")
         editor.replaceRange(text, editor.getCursor())
         const offset: number = editor.posToOffset(editor.getCursor())
         const newPosition: EditorPosition = editor.offsetToPos(offset + text.length)
