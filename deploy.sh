@@ -3,8 +3,10 @@
 # Deployment script for Obsidian Flashcards LLM Plugin
 # This script builds the plugin and copies the necessary files to the vault
 # Usage:
-#   ./deploy.sh       - Deploy to staging (default)
-#   ./deploy.sh -p    - Deploy to production
+#   ./deploy.sh           - Deploy to staging (default)
+#   ./deploy.sh -p        - Deploy to production
+#   npm run deploy        - Deploy to staging (default)
+#   npm run deploy -- -p  - Deploy to production
 
 # Exit on error
 set -e

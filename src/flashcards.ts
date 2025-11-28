@@ -138,6 +138,8 @@ Please follow this format when generating other cards. Use proper Cantonese char
 function clozeCantonesePrompt(flashcardsCount: number): string {
 	return `
 You are an expert Cantonese language educator. You will receive a paragraph, sentence, or chapter excerpt at the end—ignore any existing cards.
+There might be cards at the bottom of the file. Don't use the sentences that are already covered. Be creative and come up with something new. Don't be afraid to be innovative and come up with unique, but still common enough, sentences that can be used.
+
 
 Identify important grammatical patterns, vocabulary usage, or set phrases.  
 Generate exactly ${flashcardsCount} NEW **cloze deletion** sentence cards.
@@ -177,6 +179,7 @@ Once again, use natural Cantonese sentences, not questions. These work the best 
 function sentenceCantonesePrompt(flashcardsCount: number): string {
 	return `
 You are an expert Cantonese language educator. You will receive a markdown chapter or passage—ignore any existing flashcards.
+There might be cards at the bottom of the file. Don't use the sentences that are already covered. Be creative and come up with something new. Don't be afraid to be innovative and come up with unique, but still common enough, sentences that can be used.
 
 Identify the most important sentences for learning:  
 - Those with key grammar patterns  
