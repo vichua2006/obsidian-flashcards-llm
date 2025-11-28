@@ -22,7 +22,9 @@ export enum FlashcardType {
 	Basic = "Basic",
 	BasicReversed = "Basic (and reversed card)",
 	Cloze = "Cloze",
-	BasicCantonese = "Basic (Cantonese)"
+	BasicCantonese = "Basic (Cantonese)",
+	ClozeCantonese = "Cloze (Cantonese)",
+	SentenceCantonese = "Sentence (Cantonese)"
 }
 
 
@@ -68,11 +70,11 @@ Here are the steps to create each question-answer pair:
 Here is an example of a flashcard generated this way:
 START
 Basic (and reversed card)
-你好
-Back: Hello
+What is the capital of France?
+Back: Paris
 END
 
-This will create TWO cards: one showing 你好 asking for Hello, and another showing Hello asking for 你好.
+This will create TWO cards: one showing the question asking for the answer, and another showing the answer asking for the question.
 
 Please follow this format when generating other cards. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line. The flashcards can be as complex as needed, but have to be rich of information and challenging. Do not repeat or rephrase flashcards. Typeset equations and math formulas correctly (that is using the $ symbol without trailing spaces).
 `.trim();
@@ -95,12 +97,6 @@ Here is an example of a Cloze flashcard:
 START
 Cloze
 Text: The capital of France is {{c1::Paris}}.
-END
-
-For language learning, you can include translations in parentheses:
-START
-Cloze
-Text: 我{{c1::好}}鐘意粵語。(我 {{c1::很}} 喜欢粵語。)
 END
 
 You can use multiple cloze deletions in one card: {{c1::first}}, {{c2::second}}, {{c3::third}}.
@@ -139,6 +135,85 @@ Please follow this format when generating other cards. Use proper Cantonese char
 `.trim();
 }
 
+function clozeCantonesePrompt(flashcardsCount: number): string {
+	return `
+You are an expert Cantonese language educator. You will receive a paragraph, sentence, or chapter excerpt at the end—ignore any existing cards.
+
+Identify important grammatical patterns, vocabulary usage, or set phrases.  
+Generate exactly ${flashcardsCount} NEW **cloze deletion** sentence cards.
+
+Use the exact words "START" and "END" to signify each flashcard.
+
+Here is the required format for every cloze deletion flashcard:
+
+1. In a new line, write "START" with NO trailing spaces.
+2. On the next line, write "Cloze".
+3. On the next line, produce a Cantonese sentence **with a cloze deletion**, using the format: 「{{c1::…}}」.  
+   - Use traditional characters.  
+   - Delete ONLY one meaningful chunk per card.
+4. On the next line, write "Back:" followed by THREE lines:
+   - First line: "Full Sentence: [the complete sentence with nothing deleted]"
+   - Second line: "Jyutping: [full sentence with accurate Jyutping and tone numbers]"
+   - Third line: "Meaning: [Simplified Chinese meaning of the full sentence]"
+5. On the next line, write "END" with NO trailing spaces.
+
+Separate each flashcard with a single empty line.
+
+Here is an example of a flashcard generated this way:
+START
+Cloze
+我每日早上都會飲{{c1::咖啡}}。
+Back: Full Sentence: 我每日早上都會飲咖啡。
+Jyutping: ngo5 mui5 jat6 zou2 soeng6 dou1 wui5 jam2 gaa3 fe1
+Meaning: 我每天早上都会喝咖啡。
+END
+
+Please follow this format when generating other cards. Use proper Cantonese characters (traditional Chinese), accurate Jyutping romanization with correct tone numbers (1-6), natural example sentences, and common vocabulary. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line.
+Once again, use natural Cantonese sentences, not questions. These work the best for users when the material is in a natural context, as if retrieved from a daily conversation or article.
+当你写这些Flashcard的时候,一定要用中文字。 题目用繁体字，答案用简体字。
+`.trim();
+}
+
+function sentenceCantonesePrompt(flashcardsCount: number): string {
+	return `
+You are an expert Cantonese language educator. You will receive a markdown chapter or passage—ignore any existing flashcards.
+
+Identify the most important sentences for learning:  
+- Those with key grammar patterns  
+- High-value vocabulary  
+- Useful everyday expressions  
+Generate exactly ${flashcardsCount} NEW **sentence cards**.
+
+Use the exact words "START" and "END" to signify each flashcard.
+
+Here is the required format for every sentence card:
+
+1. In a new line, write "START" with NO trailing spaces.
+2. On the next line, write "Sentence".
+3. On the next line, write a **full Cantonese sentence** (traditional Chinese characters).
+4. On the next line, write "Back:" followed by THREE lines:
+   - First line: "Jyutping: [full sentence in correct Jyutping with tone numbers]"
+   - Second line: "Meaning: [Simplified Chinese meaning]"
+   - Third line: "Notes: [brief grammar/vocab explanation, 1–2 lines max]"
+5. On the next line, write "END" with NO trailing spaces.
+
+Separate each flashcard with a single empty line.
+
+Here is an example of a flashcard generated this way:
+START
+Sentence
+佢今日返工好早。
+Back: Jyutping: keoi5 gam1 jat6 faan1 gung1 hou2 zou2
+Meaning: 他今天上班很早。
+Notes: 「返工」= 上班；「好早」= 很早，用于描述时间。
+END
+
+
+Please follow this format when generating other cards. Use proper Cantonese characters (traditional Chinese), accurate Jyutping romanization with correct tone numbers (1-6), natural example sentences, and common vocabulary. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line.
+当你写这些Flashcard的时候,一定要用中文字。 题目用繁体字，答案用简体字。
+`.trim();
+}
+
 
 
 export async function* generateFlashcards(
@@ -167,6 +242,12 @@ export async function* generateFlashcards(
 			break;
 		case FlashcardType.BasicCantonese:
 			basePrompt = basicCantonesePrompt(flashcardsCount);
+			break;
+		case FlashcardType.ClozeCantonese:
+			basePrompt = clozeCantonesePrompt(flashcardsCount);
+			break;
+		case FlashcardType.SentenceCantonese:
+			basePrompt = sentenceCantonesePrompt(flashcardsCount);
 			break;
 		case FlashcardType.Basic:
 		default:

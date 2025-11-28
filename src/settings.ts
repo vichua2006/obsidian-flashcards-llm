@@ -123,7 +123,9 @@ export class FlashcardsSettingsTab extends PluginSettingTab {
             [FlashcardType.Basic]: "Basic",
             [FlashcardType.BasicReversed]: "Basic (and reversed card)",
             [FlashcardType.Cloze]: "Cloze",
-            [FlashcardType.BasicCantonese]: "Basic (Cantonese)"
+            [FlashcardType.BasicCantonese]: "Basic (Cantonese)",
+            [FlashcardType.ClozeCantonese]: "Cloze (Cantonese)",
+            [FlashcardType.SentenceCantonese]: "Sentence (Cantonese)"
           })
           .setValue(this.plugin.settings.flashcardType)
           .onChange(async (value) => {

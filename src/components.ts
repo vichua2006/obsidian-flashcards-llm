@@ -67,7 +67,9 @@ export class InputModal extends Modal {
             [FlashcardType.Basic]: "Basic",
             [FlashcardType.BasicReversed]: "Basic (and reversed card)",
             [FlashcardType.Cloze]: "Cloze",
-            [FlashcardType.BasicCantonese]: "Basic (Cantonese)"
+            [FlashcardType.BasicCantonese]: "Basic (Cantonese)",
+            [FlashcardType.ClozeCantonese]: "Cloze (Cantonese)",
+            [FlashcardType.SentenceCantonese]: "Sentence (Cantonese)"
           })
           .setValue(this.configuration.flashcardType)
           .onChange(async (value) => {
