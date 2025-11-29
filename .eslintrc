@@ -1,23 +1,61 @@
 {
-    "root": true,
-    "parser": "@typescript-eslint/parser",
-    "env": { "node": true },
-    "plugins": [
-      "@typescript-eslint"
-    ],
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
-    ], 
-    "parserOptions": {
-        "sourceType": "module"
-    },
-    "rules": {
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
-      "@typescript-eslint/ban-ts-comment": "off",
-      "no-prototype-builtins": "off",
-      "@typescript-eslint/no-empty-function": "off"
-    } 
-  }
+	"root": true,
+	"parser": "@typescript-eslint/parser",
+	"env": { 
+		"node": true,
+		"es2022": true
+	},
+	"plugins": [
+		"@typescript-eslint",
+		"import"
+	],
+	"extends": [
+		"eslint:recommended",
+		"plugin:@typescript-eslint/recommended",
+		"plugin:@typescript-eslint/recommended-requiring-type-checking"
+	],
+	"parserOptions": {
+		"sourceType": "module",
+		"ecmaVersion": 2022,
+		"project": "./tsconfig.json"
+	},
+	"rules": {
+		"@typescript-eslint/explicit-function-return-type": ["warn", {
+			"allowExpressions": true
+		}],
+		"@typescript-eslint/no-unused-vars": ["error", { 
+			"args": "none",
+			"ignoreRestSiblings": true 
+		}],
+		"@typescript-eslint/no-explicit-any": "warn",
+		"@typescript-eslint/no-non-null-assertion": "warn",
+		"@typescript-eslint/prefer-nullish-coalescing": "error",
+		"@typescript-eslint/prefer-optional-chain": "error",
+		"@typescript-eslint/consistent-type-imports": ["error", {
+			"prefer": "type-imports"
+		}],
+		"indent": ["error", "tab"],
+		"quotes": ["error", "double"],
+		"semi": ["error", "always"],
+		"comma-dangle": ["error", "always-multiline"],
+		"object-curly-spacing": ["error", "always"],
+		"array-bracket-spacing": ["error", "never"],
+		"arrow-spacing": "error",
+		"no-multiple-empty-lines": ["error", { "max": 1 }],
+		"eol-last": ["error", "always"],
+		"no-console": "warn",
+		"no-debugger": "error",
+		"prefer-const": "error",
+		"no-var": "error",
+		"prefer-template": "error",
+		"prefer-arrow-callback": "error",
+		"no-throw-literal": "error",
+		"import/order": ["error", {
+			"groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+			"newlines-between": "always",
+			"alphabetize": { "order": "asc" }
+		}],
+		"import/newline-after-import": "error",
+		"import/no-duplicates": "error"
+	}
+}
