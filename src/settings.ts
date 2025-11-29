@@ -1,4 +1,4 @@
-import { App, MarkdownView, PluginSettingTab, Setting, Modal } from 'obsidian';
+import { App, MarkdownView, PluginSettingTab, Setting, Modal, Notice } from 'obsidian';
 import { availableClaudeModels, allAvailableModels } from "./models";
 import FlashcardsLLMPlugin from "./main"
 import { FlashcardType } from "./flashcards";
@@ -444,11 +444,11 @@ export class PresetEditorModal extends Modal {
           .setCta()
           .onClick(() => {
             if (!this.presetName.trim()) {
-              alert("Please enter a preset name");
+              new Notice("Please enter a preset name");
               return;
             }
             if (this.items.length === 0) {
-              alert("Please add at least one card type");
+              new Notice("Please add at least one card type");
               return;
             }
             
