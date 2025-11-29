@@ -151,12 +151,8 @@ export default class FlashcardsLLMPlugin extends Plugin {
           );
 
           await this.insertGeneratedFlashcards(editor, generatedFlashcards);
-
-          // Add spacing between different card types (except after the last one)
-          if (i < preset.items.length - 1) {
-            editor.setCursor(editor.lastLine())
-            editor.replaceRange("\n", editor.getCursor())
-          }
+          editor.setCursor(editor.lastLine())
+          editor.replaceRange("\n\n", editor.getCursor())
         }
 
         new Notice("All flashcards successfully generated!");
