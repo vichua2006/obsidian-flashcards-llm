@@ -153,7 +153,7 @@ Here is the required format for every cloze deletion flashcard:
 3. On the next line, produce a Cantonese sentence **with a cloze deletion**, using the format: 「{{c1::…}}」.  
    - Use traditional characters.  
    - Delete ONLY one meaningful chunk per card.
-4. On the next line, write "Back:" followed by THREE lines:
+4. On the next line, write "Back:" followed by THREE lines, each of which should be contained in another **cloze deletion** format with the same number as the cloze deletion in the question: 「{{c1::…}}」, 「{{c1::…}}」, 「{{c1::…}}」.
    - First line: "Full Sentence: [the complete sentence with nothing deleted]"
    - Second line: "Jyutping: [full sentence with accurate Jyutping and tone numbers]"
    - Third line: "Meaning: [Simplified Chinese meaning of the full sentence]"
@@ -165,9 +165,9 @@ Here is an example of a flashcard generated this way:
 START
 Cloze
 我每日早上都會飲{{c1::咖啡}}。
-Back: Full Sentence: 我每日早上都會飲咖啡。
-Jyutping: ngo5 mui5 jat6 zou2 soeng6 dou1 wui5 jam2 gaa3 fe1
-Meaning: 我每天早上都会喝咖啡。
+{{c1::Back: Full Sentence: 我每日早上都會飲咖啡。}}
+{{c1::Jyutping: ngo5 mui5 jat6 zou2 soeng6 dou1 wui5 jam2 gaa3 fe1}}
+{{c1::Meaning: 我每天早上都会喝咖啡。}}
 END
 
 Please follow this format when generating other cards. Use proper Cantonese characters (traditional Chinese), accurate Jyutping romanization with correct tone numbers (1-6), natural example sentences, and common vocabulary. Again, it is extremely important that there's no trailing whitespaces at the end of every single line. Separate individual flashcards with a single empty line.

@@ -1,6 +1,6 @@
 import { App, Editor, EditorPosition, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { generateFlashcards, FlashcardType } from "./flashcards";
-import { InputModal } from "./components"
+import { InputModal, GenerationConfig } from "./components"
 import { FlashcardsSettings, FlashcardsSettingsTab } from "./settings"
 
 // TODO:
@@ -23,7 +23,8 @@ const DEFAULT_SETTINGS: FlashcardsSettings = {
   maxTokens: 300,
   streaming: true,
   hideInPreview: true,
-  tag: "#flashcards"
+  tag: "#flashcards",
+  presets: []
 };
 
 export default class FlashcardsLLMPlugin extends Plugin {
@@ -35,7 +36,11 @@ export default class FlashcardsLLMPlugin extends Plugin {
       id: "generate-flashcards",
       name: "Generate Flashcards",
       editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.onGenerateFlashcards(editor, view, this.settings);
+        this.onGenerateFlashcards(editor, view, {
+          ...this.settings,
+          usePreset: false,
+          selectedPreset: undefined
+        });
       },
     });
 
@@ -44,7 +49,7 @@ export default class FlashcardsLLMPlugin extends Plugin {
       name: "Generate flashcards with new settings",
       editorCallback: (editor: Editor, view: MarkdownView) => {
 
-        new InputModal(this.app, this, (configuration: FlashcardsSettings) => {
+        new InputModal(this.app, this, (configuration: GenerationConfig) => {
           this.onGenerateFlashcards(editor, view, configuration);
         }).open();
 
@@ -73,7 +78,17 @@ export default class FlashcardsLLMPlugin extends Plugin {
     this.addSettingTab(new FlashcardsSettingsTab(this.app, this));
   }
 
-  async onGenerateFlashcards(editor: Editor, view: MarkdownView, configuration: FlashcardsSettings) {
+  async insertGeneratedFlashcards(editor: Editor, generatedFlashcards: AsyncGenerator<string, void, unknown>) {
+    editor.setCursor(editor.lastLine())
+    for await (let text of generatedFlashcards) {
+      editor.replaceRange(text, editor.getCursor())
+      const offset: number = editor.posToOffset(editor.getCursor())
+      const newPosition: EditorPosition = editor.offsetToPos(offset + text.length)
+      editor.setCursor(newPosition)
+    }
+  }
+
+  async onGenerateFlashcards(editor: Editor, view: MarkdownView, configuration: GenerationConfig) {
     const provider = configuration.provider;
     const apiKey = provider === 'openai' ? configuration.openaiApiKey : configuration.claudeApiKey;
     const model = provider === 'openai' ? configuration.openaiModel : configuration.claudeModel;
@@ -89,12 +104,6 @@ export default class FlashcardsLLMPlugin extends Plugin {
 
     const sep = configuration.multilineSeparator
 
-    let flashcardsCount = Math.trunc(configuration.flashcardsCount)
-    if (!Number.isFinite(flashcardsCount) || flashcardsCount <= 0) {
-      new Notice("Please provide a correct number of flashcards to generate. Defaulting to 3")
-      flashcardsCount = 3
-    }
-
     let additionalPrompt = configuration.additionalPrompt
 
     let maxTokens = Math.trunc(configuration.maxTokens)
@@ -104,64 +113,93 @@ export default class FlashcardsLLMPlugin extends Plugin {
     }
 
     const tag = configuration.tag;
+    const streaming = configuration.streaming
 
     const wholeText = editor.getValue()
     const currentText = (editor.somethingSelected() ? editor.getSelection() : wholeText)
-    // Check if the header is already present
-    const headerRegex = /\n\n### Generated Flashcards\n/;
-    const hasHeader = headerRegex.test(wholeText);
 
-    // Check if the #flashcards tag is already present
-    // const tagRegex = /\n#flashcards.*\n/;
-    // const hasTag = tagRegex.test(wholeText);
+    // Determine if using preset or single generation
+    if (configuration.usePreset && configuration.selectedPreset) {
+      // Preset-based generation
+      const preset = configuration.selectedPreset;
+      new Notice(`Generating flashcards from preset: ${preset.name}`);
 
+      try {
+        // Add tag once at the beginning
+        let updatedText = `\n\n${tag}\n\n`;
+        editor.setCursor(editor.lastLine())
+        editor.replaceRange(updatedText, editor.getCursor())
 
-    const streaming = configuration.streaming
-    new Notice("Generating flashcards...");
+        // Generate for each item in the preset
+        for (let i = 0; i < preset.items.length; i++) {
+          const item = preset.items[i];
+          const itemNum = i + 1;
+          const totalItems = preset.items.length;
 
-    await flashcardsCount
+          new Notice(`Generating ${item.count} × ${item.flashcardType} (${itemNum}/${totalItems})...`);
 
-    try {
-      const generatedFlashcards = await generateFlashcards(
-        currentText,
-        provider,
-        apiKey,
-        model,
-        configuration.flashcardType,
-        flashcardsCount,
-        additionalPrompt,
-        maxTokens,
-        streaming
-      )
+          const generatedFlashcards = await generateFlashcards(
+            currentText,
+            provider,
+            apiKey,
+            model,
+            item.flashcardType,
+            item.count,
+            additionalPrompt,
+            maxTokens,
+            streaming
+          );
 
-      let updatedText = "";
+          await this.insertGeneratedFlashcards(editor, generatedFlashcards);
+          editor.setCursor(editor.lastLine())
+          editor.replaceRange("\n\n", editor.getCursor())
+        }
 
-      // Generate and add the header if not already present
-      // if (!hasHeader) {
-      //   updatedText += "\n\n### Generated Flashcards\n";
-      // }
+        new Notice("All flashcards successfully generated!");
 
-      // Generate and add the #flashcards tag if not already present
-      // if (!hasTag) {
-      //   updatedText += "> #flashcards\n> \n> ";
-      // }
-      updatedText += `\n\n${tag}\n\n`;
-
-      editor.setCursor(editor.lastLine())
-      editor.replaceRange(updatedText, editor.getCursor())
-
-      editor.setCursor(editor.lastLine())
-      for await (let text of generatedFlashcards) {
-        editor.replaceRange(text, editor.getCursor())
-        const offset: number = editor.posToOffset(editor.getCursor())
-        const newPosition: EditorPosition = editor.offsetToPos(offset + text.length)
-        editor.setCursor(newPosition)
+      } catch (error) {
+        console.error("Error generating flashcards:", error);
+        new Notice("Error generating flashcards. Please check the plugin console for details.");
       }
-      new Notice("Flashcards succesfully generated!");
 
-    } catch (error) {
-      console.error("Error generating flashcards:", error);
-      new Notice("Error generating flashcards. Please check the plugin console for details.");
+    } else {
+      // Single type generation (original behavior)
+      // Check if the #flashcards tag is already present
+      // const tagRegex = /\n#flashcards.*\n/;
+      // const hasTag = tagRegex.test(wholeText);
+      let flashcardsCount = Math.trunc(configuration.flashcardsCount)
+      if (!Number.isFinite(flashcardsCount) || flashcardsCount <= 0) {
+        new Notice("Please provide a correct number of flashcards to generate. Defaulting to 3")
+        flashcardsCount = 3
+      }
+
+      new Notice("Generating flashcards...");
+
+      try {
+        const generatedFlashcards = await generateFlashcards(
+          currentText,
+          provider,
+          apiKey,
+          model,
+          configuration.flashcardType,
+          flashcardsCount,
+          additionalPrompt,
+          maxTokens,
+          streaming
+        )
+
+        let updatedText = `\n\n${tag}\n\n`;
+
+        editor.setCursor(editor.lastLine())
+        editor.replaceRange(updatedText, editor.getCursor())
+
+        await this.insertGeneratedFlashcards(editor, generatedFlashcards);
+        new Notice("Flashcards succesfully generated!");
+
+      } catch (error) {
+        console.error("Error generating flashcards:", error);
+        new Notice("Error generating flashcards. Please check the plugin console for details.");
+      }
     }
   }
 
